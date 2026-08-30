@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThermalGuard — Hyperlocal Heat-Risk Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body data-theme="dark">
+  <div class="app-shell">
+    
+    <!-- Top Navigation / App Bar -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-logo-wrap">
+          <span class="brand-logo">TG</span>
+          <span class="live-pulse-dot" title="Live Polling Active"></span>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title-row">
+            <h1 class="brand-title">ThermalGuard</h1>
+            <span class="track-badge">FortyGuard Hackathon &middot; Track 03</span>
+          </div>
+          <p class="brand-subtitle">Hyperlocal 2m Ambient Thermal Risk &amp; Chiller Stress Telemetry</p>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <!-- Audio Alarm Siren Toggle -->
+        <button id="audio-alarm-btn" class="btn btn-secondary btn-icon" title="Toggle Audible Alarm">
+          <span id="audio-icon">🔊</span>
+          <span id="audio-label">Alarm: On</span>
+        </button>
+
+        <!-- Live Refresh Indicator Pill -->
+        <div class="refresh-countdown-pill" id="refresh-pill">
+          <span class="refresh-dot"></span>
+          <span>Auto-refresh: <strong id="refresh-countdown">3s</strong></span>
+        </div>
+
+        <button id="notify-perm-btn" class="btn btn-secondary btn-icon" title="Enable Desktop Alerts">
+          <span class="btn-icon-symbol">🔔</span>
+          <span id="notify-btn-text">Desktop Alerts</span>
+        </button>
+
+        <button id="poll-trigger-btn" class="btn btn-secondary" title="Trigger immediate FortyGuard API poll">
+          <span class="refresh-spinner" id="poll-spinner"></span>
+          <span>Poll Now</span>
+        </button>
+
+        <a href="/api/export/summary" class="btn btn-secondary" download="thermalguard_incident_report.txt" title="Download Executive Incident Summary">
+          <span>Summary Report</span>
+        </a>
+
+        <a href="/api/export/csv" class="btn btn-secondary" download="thermalguard_telemetry_export.csv" title="Download CSV of rolling history">
+          <span>Export CSV</span>
+        </a>
+
+        <button id="theme-toggle" class="btn btn-theme" title="Toggle theme">
+          <span id="theme-icon">☀️</span>
+          <span id="theme-label">Light</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Global Telemetry Status Bar -->
+    <section class="telemetry-bar">
+      <div class="telemetry-stat">
+        <span class="stat-label">Monitored Facilities</span>
+        <span class="stat-value" id="stat-total-facilities">3 Sites</span>
+      </div>
+      <div class="telemetry-stat">
+        <span class="stat-label">Active Critical Alerts</span>
+        <span class="stat-value stat-alert" id="stat-critical-count">0</span>
+      </div>
+      <div class="telemetry-stat">
+        <span class="stat-label">Peak Ambient Reading</span>
+        <span class="stat-value" id="stat-peak-temp">--.- °C</span>
+      </div>
+      <div class="telemetry-stat">
+        <span class="stat-label">Max Microclimate Delta</span>
+        <span class="stat-value text-cyan" id="stat-max-uhi">+0.0 °C</span>
+      </div>
+      <div class="telemetry-stat">
+        <span class="stat-label">API Poller Status</span>
+        <div class="poller-status-inline">
+          <span class="status-indicator-dot" id="poller-dot"></span>
+          <span class="stat-mono" id="poller-status-text">Connected</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notification Toast Banner (Hidden by default) -->
+    <div id="alert-banner" class="alert-banner" style="display: none;">
+      <div class="alert-banner-content">
+        <span class="alert-icon">🚨</span>
+        <span id="alert-banner-text">Critical heat risk detected!</span>
+      </div>
+      <div class="alert-banner-actions">
+        <button class="btn btn-critical-override" id="banner-override-btn">Dispatch Auxiliary Cooling</button>
+        <button class="alert-dismiss" id="alert-dismiss-btn">&times;</button>
+      </div>
+    </div>
+
+    <!-- Interactive Simulator Ribbon for Judges -->
+    <section class="simulator-ribbon">
+      <div class="sim-label">
+        <span class="sim-badge">Judge Demo Tool</span>
+        <span>Simulate Thermal Heat Stress &amp; Recovery:</span>
+      </div>
+      <div class="sim-actions">
+        <button class="btn btn-sim-spike" id="sim-spike-dc" title="Trigger +7°C surge on Data Center">
+          ⚡ Surge Data Center (+7°C)
+        </button>
+        <button class="btn btn-sim-spike" id="sim-spike-wh" title="Trigger +6°C surge on Warehouse">
+          ⚡ Surge Warehouse (+6°C)
+        </button>
+        <button class="btn btn-sim-reset" id="sim-reset-all" title="Reset all to nominal baseline">
+          ↺ Reset to Baseline
+        </button>
+      </div>
+    </section>
+
+    <!-- Facility Filter & View Controls -->
+    <section class="controls-toolbar">
+      <div class="filter-group">
+        <button class="filter-btn active" data-filter="all">All Sites (3)</button>
+        <button class="filter-btn" data-filter="critical">Critical Only</button>
+        <button class="filter-btn" data-filter="elevated">Elevated Only</button>
+        <button class="filter-btn" data-filter="normal">Nominal Only</button>
+      </div>
+      <div class="search-wrap">
+        <input type="text" id="facility-search-input" class="search-input" placeholder="Filter facilities (e.g. Data Center, Phoenix)...">
+      </div>
+    </section>
+
+    <!-- Facility Cards Grid -->
+    <main class="dashboard-main">
+      <div class="section-heading">
+        <h2 class="section-title">Operational Facility Cards</h2>
+        <span class="section-meta">Hyperlocal 2m FortyGuard Telemetry Stream</span>
+      </div>
+
+      <div class="facility-grid" id="facility-cards-container">
+        <!-- Rendered dynamically by static/js/dashboard.js -->
+        <div class="card-skeleton">
+          <div class="skeleton-line" style="width: 40%;"></div>
+          <div class="skeleton-line" style="width: 70%; height: 32px; margin: 16px 0;"></div>
+          <div class="skeleton-line" style="width: 100%; height: 160px;"></div>
+        </div>
+      </div>
+
+      <!-- Incident Event Audit Trail -->
+      <section class="audit-log-section">
+        <div class="section-heading">
+          <h3 class="section-title" style="font-size: 15px;">Operational Incident &amp; Transition Audit Log</h3>
+          <span class="section-meta">Chronological facility state changes &amp; chiller dispatches</span>
+        </div>
+        <div class="audit-log-card">
+          <ul class="audit-log-list" id="audit-log-list">
+            <li class="audit-log-empty">Waiting for initial log events...</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-left">
+        <span>ThermalGuard &copy; 2026 &middot; Built for FortyGuard Hackathon '26 (Industrial &amp; Enterprise Track)</span>
+      </div>
+      <div class="footer-right">
+        <span class="footer-badge">Python Flask</span>
+        <span class="footer-badge">Canvas API</span>
+        <span class="footer-badge">FortyGuard 2m Heatmap API</span>
+        <span class="footer-badge">Synthesized Audio Alarms</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
